@@ -1,0 +1,94 @@
+// Run a Spark job in Scala in Spark-Shell to predict the event topics based on the venue locations 
+
+// spark-shell --jars /usr/lib/hive-hcatalog/share/hcatalog/hive-hcatalog-core-1.1.0-cdh5.13.0.jar
+
+import org.apache.spark.sql.hive.HiveContext
+import hiveContext._
+import org.apache.spark.SparkContext
+import org.apache.spark.mllib.tree.DecisionTree
+import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.mllib.tree.configuration.Algo._
+import org.apache.spark.mllib.tree.impurity.Entropy
+import java.util.{Calendar, Date}
+import org.apache.spark.ml.feature.StringIndexer
+import org.apache.spark.ml.feature.{OneHotEncoder, StringIndexer}
+import org.apache.spark.ml.{Pipeline,PipelineModel}
+import org.apache.spark.SparkContext
+import org.apache.spark.mllib.tree.DecisionTree
+import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.mllib.tree.configuration.Algo._
+import org.apache.spark.mllib.tree.impurity.Entropy
+import java.util.{Calendar, Date}
+import org.apache.spark.ml.feature.StringIndexer
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.ml.feature.{OneHotEncoder,StringIndexer,VectorAssembler,VectorIndexer}
+import org.apache.spark.ml.Pipeline
+import org.apache.spark.mllib.linalg.DenseVector
+import org.apache.spark.ml.feature.Normalizer
+import org.apache.spark.ml.{Pipeline,PipelineModel}
+import org.apache.spark.ml.evaluation.RegressionEvaluator
+import org.apache.spark.mllib.util.MLUtils
+
+val hiveContext = new org.apache.spark.sql.hive.HiveContext(sc)
+
+val hive_tables=hiveContext.sql("select group.group_topics.topic_name[0], group.group_city, group.group_lat, group.group_lon, group.group_country from meetup")
+
+//hive_tables: org.apache.spark.sql.DataFrame = [_c0: string, group_city: string, group_lat: double, group_lon: double, group_country: string]
+
+val cols = hive_tables.columns
+var indexers: Array[StringIndexer] = Array()
+
+
+val indexers = cols.map { colName => new StringIndexer().setInputCol(colName).setOutputCol(colName + "_indexed").setHandleInvalid("skip") }
+
+ val pipeline = new Pipeline().setStages(indexers)   
+   
+val newDF = pipeline.fit(hive_tables).transform(hive_tables)
+newDF.show()
+
+/*
++--------------------+---------------+---------+---------+-------------+-----------+------------------+-----------------+-----------------+---------------------+
+|                 _c0|     group_city|group_lat|group_lon|group_country|_c0_indexed|group_city_indexed|group_lat_indexed|group_lon_indexed|group_country_indexed|
++--------------------+---------------+---------+---------+-------------+-----------+------------------+-----------------+-----------------+---------------------+
+|              Hiking|          Akron|    41.08|   -81.52|           us|        0.0|             262.0|            561.0|            889.0|                  0.0|
+|             Singles|     Las Cruces|    32.32|  -106.74|           us|        3.0|             845.0|           1678.0|           2141.0|                  0.0|
+|         Hanging Out|         Austin|    30.24|   -97.76|           us|      396.0|               9.0|             98.0|             75.0|                  0.0|
+|   Motorcycle Riding|         Cotati|    38.33|   -122.7|           us|      151.0|            1912.0|            898.0|            934.0|                  0.0|
+|          Meditation|         Fresno|    36.84|   -119.8|           us|       12.0|             116.0|            187.0|            268.0|                  0.0|
+|      Small Business|        Boulder|    40.04|  -105.28|           us|       11.0|              55.0|             64.0|            184.0|                  0.0|
+|    Machine Learning|        Boulder|    40.05|  -105.21|           us|      181.0|              55.0|            134.0|            213.0|                  0.0|
+|             Fitness|     Harrisburg|    40.26|   -76.88|           us|        1.0|             352.0|            619.0|            134.0|                  0.0|
+|             Singles|         Denver|    39.68|  -104.96|           us|        3.0|              15.0|            464.0|            273.0|                  0.0|
+|         Sports Cars|      San Diego|    32.72|  -117.17|           us|     1758.0|              12.0|             13.0|             10.0|                  0.0|
+
+|           Nutrition|       Carlsbad|    33.15|  -117.31|           us|      140.0|             346.0|             97.0|            690.0|                  0.0|
+|    Self-Empowerment|North Hollywood|    34.17|  -118.37|           us|       78.0|             162.0|            277.0|             37.0|                  0.0|
+|Real Estate Netwo...|    Saint Louis|    38.54|   -90.32|           us|      179.0|              41.0|           1014.0|           1070.0|                  0.0|
+|     Performing Arts|        Seattle|    47.66|  -122.29|           us|       74.0|              13.0|            310.0|             93.0|                  0.0|
+|         Environment|      Oceanside|    33.19|  -117.38|           us|       66.0|             273.0|            634.0|           1097.0|                  0.0|
+|      Small Business|        Boulder|    40.04|  -105.28|           us|       11.0|              55.0|             64.0|            184.0|                  0.0|
+|             Fitness|      Singapore|      1.3|   103.85|           sg|        1.0|              47.0|             35.0|             33.0|                 19.0|
+|   Social Networking|       New York|    40.75|   -73.98|           us|        6.0|               1.0|              1.0|             16.0|                  0.0|
+|  Language & Culture|      Vancouver|    49.25|  -123.11|           ca|       52.0|              17.0|            384.0|            180.0|                  2.0|
++--------------------+---------------+---------+---------+-------------+-----------+------------------+-----------------+-----------------+---------------------+
+only showing top 20 rows
+*/
+
+val mldata = newDF.map { line => LabeledPoint(line.getDouble(5), new DenseVector((for (i <- 6 until line.length) yield line.getDouble(i)).toArray)) }
+
+mldata.collect().toList
+
+/*
+res9: List[org.apache.spark.mllib.regression.LabeledPoint] = List((0.0,[262.0,561.0,889.0,0.0]), (3.0,[845.0,1678.0,2141.0,0.0]), (396.0,[9.0,98.0,75.0,0.0]), (151.0,[1912.0,898.0,934.0,0.0]), (12.0,[116.0,187.0,268.0,0.0]), (11.0,[55.0,64.0,184.0,0.0]), (181.0,[55.0,134.0,213.0,0.0]), (1.0,[352.0,619.0,134.0,0.0]), (3.0,[15.0,464.0,273.0,0.0]), (1758.0,[12.0,13.0,10.0,0.0]), (44.0,[16.0,45.0,43.0,0.0]), (140.0,[346.0,97.0,690.0,0.0]), (78.0,[162.0,277.0,37.0,0.0]), (179.0,[41.0,1014.0,1070.0,0.0]), (74.0,[13.0,310.0,93.0,0.0]), (66.0,[273.0,634.0,1097.0,0.0]), (11.0,[55.0,64.0,184.0,0.0]), (1.0,[47.0,35.0,33.0,19.0]), (6.0,[1.0,1.0,16.0,0.0]), (52.0,[17.0,384.0,180.0,2.0]), (6.0,[3.0,92.0,379.0,0.0]), (59.0,[992.0,145.0,1583.0,0.0]), (1391.0,[47.0,35.0,33.0,19.0]), (77.0,[607.0,226.0,1...
+*/
+
+val Array(trainingData, testData) = mldata.randomSplit(Array(0.7, 0.3))
+val maxDepth = 5
+val model = DecisionTree.train(trainingData, Classification, Entropy, maxDepth, numClasses=5200)
+val labelAndPreds = testData.map { point => (point.label, model.predict(point.features)) }
+
+val testErr = labelAndPreds.filter(r => r._1 != r._2).count.toDouble / testData.count
+println("Test Error = " + testErr)
