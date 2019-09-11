@@ -1,4 +1,5 @@
-# Meetup_Stream_Prediction_with_Spark_Scala_Flume_HDFS_HIVE
+# Meetup Events Streaming with Flume in HDFS and HIVE 
+# and Prediction with Apache Spark in Scala
 
 ## Step 1 - Create table in HIVE to store Meetup events and venues from HDFS
 ### run meetup.hql
