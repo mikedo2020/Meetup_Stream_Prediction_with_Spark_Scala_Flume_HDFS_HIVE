@@ -11,4 +11,4 @@
 ### run meetup.scl
 
 
-file:///home/mike/Pictures/diagram-meetup.jpg
+
