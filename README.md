@@ -11,4 +11,6 @@
 ### run meetup.scl
 
 
+![alt text](https://github.com/mikedoucerain/Meetup_Stream_Prediction_with_Spark_Scala_Flume_HDFS_HIVE/blob/master/diagram-meetup.jpg)
+
 
